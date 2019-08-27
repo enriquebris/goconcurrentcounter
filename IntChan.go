@@ -49,7 +49,7 @@ type concurrentIntFuncEntry struct {
 // function to be executed by concurrentInt
 type concurrentIntFunc func()
 
-func newConcurrentIntChan(value int) ConcurrentIntCounter {
+func NewConcurrentIntChan(value int) ConcurrentIntCounter {
 	ret := &IntCounterChan{}
 	ret.initialize(value)
 

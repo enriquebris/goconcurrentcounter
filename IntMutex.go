@@ -21,8 +21,8 @@ type IntMutex struct {
 	runAfterTriggerFunctions goconcurrentqueue.Queue
 }
 
-// newConcurrentInt creates and returns a *concurrentInt
-func newConcurrentIntMutex(value int) ConcurrentIntCounter {
+// NewConcurrentIntMutex creates and returns a *concurrentInt
+func NewConcurrentIntMutex(value int) ConcurrentIntCounter {
 	ret := &IntMutex{}
 	ret.initialize(value)
 
