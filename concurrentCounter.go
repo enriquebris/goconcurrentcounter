@@ -1,6 +1,6 @@
 package goconcurrentcounter
 
-type ConcurrentIntCounter interface {
+type Int interface {
 	initialize(value int)
 	executeTriggerFunctions(value int)
 	GetValue() int
