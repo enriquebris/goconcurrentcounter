@@ -16,7 +16,7 @@ const (
 )
 
 // concurrent safe Int
-type IntCounterChan struct {
+type IntChan struct {
 	value                    int
 	valueChan                chan valueData
 	triggerChan              chan concurrentIntTrigger
@@ -49,14 +49,14 @@ type concurrentIntFuncEntry struct {
 // function to be executed by concurrentInt
 type concurrentIntFunc func()
 
-func NewConcurrentIntChan(value int) ConcurrentIntCounter {
-	ret := &IntCounterChan{}
+func NewIntChan(value int) *IntChan {
+	ret := &IntChan{}
 	ret.initialize(value)
 
 	return ret
 }
 
-func (st *IntCounterChan) initialize(value int) {
+func (st *IntChan) initialize(value int) {
 	st.keepWorking = true
 	st.value = value
 	st.valueChan = make(chan valueData, concurrentIntValueChanCapacity)
@@ -68,7 +68,7 @@ func (st *IntCounterChan) initialize(value int) {
 	go st.triggerListener()
 }
 
-func (st *IntCounterChan) GetValue() int {
+func (st *IntChan) GetValue() int {
 	//return st.value
 
 	getValueChan := make(chan valueData, 2)
@@ -82,13 +82,13 @@ func (st *IntCounterChan) GetValue() int {
 	return vData.update
 }
 
-func (st *IntCounterChan) Update(value int) {
+func (st *IntChan) Update(value int) {
 	st.valueChan <- valueData{
 		update: value,
 	}
 }
 
-func (st *IntCounterChan) SetTriggerOnValue(value int, name string, fn concurrentIntFunc) {
+func (st *IntChan) SetTriggerOnValue(value int, name string, fn concurrentIntFunc) {
 	st.triggerChan <- concurrentIntTrigger{
 		Action: triggerActionSet,
 		Value:  value,
@@ -97,7 +97,7 @@ func (st *IntCounterChan) SetTriggerOnValue(value int, name string, fn concurren
 	}
 }
 
-func (st *IntCounterChan) GetTriggerOnValue(value int, name string) concurrentIntFunc {
+func (st *IntChan) GetTriggerOnValue(value int, name string) concurrentIntFunc {
 	waitingForGetTriggerOnValue := make(chan interface{}, 2)
 	st.triggerChan <- concurrentIntTrigger{
 		Action:   triggerActionGet,
@@ -113,7 +113,7 @@ func (st *IntCounterChan) GetTriggerOnValue(value int, name string) concurrentIn
 	return triggerOnValue
 }
 
-func (st *IntCounterChan) UnsetTriggerOnValue(value int, name string) {
+func (st *IntChan) UnsetTriggerOnValue(value int, name string) {
 	st.triggerChan <- concurrentIntTrigger{
 		Action:   triggerActionUnset,
 		Value:    value,
@@ -123,7 +123,7 @@ func (st *IntCounterChan) UnsetTriggerOnValue(value int, name string) {
 	}
 }
 
-func (st *IntCounterChan) UnsetTriggersOnValue(value int) {
+func (st *IntChan) UnsetTriggersOnValue(value int) {
 	waitingForUnsetTriggersOnValue := make(chan interface{}, 2)
 	st.triggerChan <- concurrentIntTrigger{
 		Action:   triggerActionUnsetTriggers,
@@ -137,7 +137,7 @@ func (st *IntCounterChan) UnsetTriggersOnValue(value int) {
 }
 
 // executeTriggerFunctions executes all trigger functions associated to the given value
-func (st *IntCounterChan) executeTriggerFunctions(value int) {
+func (st *IntChan) executeTriggerFunctions(value int) {
 	waitingForExecuteTriggerFunctions := make(chan interface{}, 2)
 	st.triggerChan <- concurrentIntTrigger{
 		Action:   triggerActionExecute,
@@ -179,7 +179,7 @@ func (st *IntCounterChan) executeTriggerFunctions(value int) {
 // Listeners  **************************************************************************************************
 // *************************************************************************************************************
 
-func (st *IntCounterChan) valueListener() {
+func (st *IntChan) valueListener() {
 	for st.keepWorking {
 		update := <-st.valueChan
 		if update.update != 0 {
@@ -201,7 +201,7 @@ func (st *IntCounterChan) valueListener() {
 	}
 }
 
-func (st *IntCounterChan) triggerListener() {
+func (st *IntChan) triggerListener() {
 	for st.keepWorking {
 		triggerSignal := <-st.triggerChan
 
@@ -223,7 +223,7 @@ func (st *IntCounterChan) triggerListener() {
 
 // setTriggerOnValue adds a named function to a value.
 // This function is only intended to be called by triggerListener
-func (st *IntCounterChan) setTriggerOnValue(value int, name string, fn concurrentIntFunc) {
+func (st *IntChan) setTriggerOnValue(value int, name string, fn concurrentIntFunc) {
 	slice, ok := st.triggerMap[value]
 	if !ok {
 		slice = make([]concurrentIntFuncEntry, 0)
@@ -238,7 +238,7 @@ func (st *IntCounterChan) setTriggerOnValue(value int, name string, fn concurren
 }
 
 // getTriggerOnValue returns the function for the given value and name
-func (st *IntCounterChan) getTriggerOnValue(value int, name string) concurrentIntFunc {
+func (st *IntChan) getTriggerOnValue(value int, name string) concurrentIntFunc {
 	sl, ok := st.triggerMap[value]
 	if !ok {
 		return nil
@@ -254,7 +254,7 @@ func (st *IntCounterChan) getTriggerOnValue(value int, name string) concurrentIn
 }
 
 // getTriggersOnValue returns all the functions on a value
-func (st *IntCounterChan) getTriggersOnValue(value int) []concurrentIntFuncEntry {
+func (st *IntChan) getTriggersOnValue(value int) []concurrentIntFuncEntry {
 	sl, ok := st.triggerMap[value]
 	if !ok {
 		return nil
@@ -263,7 +263,7 @@ func (st *IntCounterChan) getTriggersOnValue(value int) []concurrentIntFuncEntry
 	return sl
 }
 
-func (st *IntCounterChan) unsetTriggerOnValue(value int, name string) bool {
+func (st *IntChan) unsetTriggerOnValue(value int, name string) bool {
 	sl, ok := st.triggerMap[value]
 	if !ok {
 		return false
@@ -283,11 +283,11 @@ func (st *IntCounterChan) unsetTriggerOnValue(value int, name string) bool {
 	return true
 }
 
-func (st *IntCounterChan) unsetTriggersOnValue(value int) {
+func (st *IntChan) unsetTriggersOnValue(value int) {
 	delete(st.triggerMap, value)
 }
 
 // EnqueueToRunAfterCurrentTriggerFunctions enqueues a function to be executed just after the trigger functions
-func (st *IntCounterChan) EnqueueToRunAfterCurrentTriggerFunctions(fn concurrentIntFunc) {
+func (st *IntChan) EnqueueToRunAfterCurrentTriggerFunctions(fn concurrentIntFunc) {
 	st.runAfterTriggerFunctions.Enqueue(fn)
 }
