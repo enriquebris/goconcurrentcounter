@@ -46,9 +46,6 @@ type concurrentIntFuncEntry struct {
 	Func concurrentIntFunc
 }
 
-// function to be executed by concurrentInt
-type concurrentIntFunc func()
-
 func NewIntChan(value int) *IntChan {
 	ret := &IntChan{}
 	ret.initialize(value)
@@ -137,11 +134,11 @@ func (st *IntChan) UnsetTriggersOnValue(value int) {
 }
 
 // executeTriggerFunctions executes all trigger functions associated to the given value
-func (st *IntChan) executeTriggerFunctions(value int) {
+func (st *IntChan) executeTriggerFunctions(currentValue int, previousValue int) {
 	waitingForExecuteTriggerFunctions := make(chan interface{}, 2)
 	st.triggerChan <- concurrentIntTrigger{
 		Action:   triggerActionExecute,
-		Value:    value,
+		Value:    currentValue,
 		Name:     "",
 		Func:     nil,
 		Callback: waitingForExecuteTriggerFunctions,
@@ -161,7 +158,7 @@ func (st *IntChan) executeTriggerFunctions(value int) {
 				rawFunc, err = st.runAfterTriggerFunctions.Dequeue()
 				if rawFunc != nil {
 					fn, _ := rawFunc.(concurrentIntFunc)
-					fn()
+					fn(currentValue, previousValue)
 				}
 			}
 		}()
@@ -170,7 +167,7 @@ func (st *IntChan) executeTriggerFunctions(value int) {
 
 		// execute functions
 		for i := 0; i < len(entries); i++ {
-			entries[i].Func()
+			entries[i].Func(currentValue, previousValue)
 		}
 	}
 }
@@ -183,10 +180,11 @@ func (st *IntChan) valueListener() {
 	for st.keepWorking {
 		update := <-st.valueChan
 		if update.update != 0 {
+			previousValue := st.value
 			st.value += update.update
 
 			// execute trigger functions
-			st.executeTriggerFunctions(st.value)
+			st.executeTriggerFunctions(st.value, previousValue)
 		} else {
 			if update.feedback != nil {
 				select {

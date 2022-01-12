@@ -49,14 +49,15 @@ func (st *IntMutex) Update(upd int) {
 	st.mutex.Lock()
 	defer st.mutex.Unlock()
 
+	previousValue := st.value
 	st.value = st.value + upd
 
 	// executes associated function, if any
-	st.executeTriggerFunctions(st.value)
+	st.executeTriggerFunctions(st.value, previousValue)
 }
 
 // executeTriggerFunctions executes all trigger functions associated to the given value
-func (st *IntMutex) executeTriggerFunctions(value int) {
+func (st *IntMutex) executeTriggerFunctions(currentValue int, previousValue int) {
 	st.triggerFuncMutex.Lock()
 	defer func() {
 		// unlock
@@ -71,14 +72,14 @@ func (st *IntMutex) executeTriggerFunctions(value int) {
 			rawFunc, err = st.runAfterTriggerFunctions.Dequeue()
 			if rawFunc != nil {
 				fn, _ := rawFunc.(concurrentIntFunc)
-				fn()
+				fn(currentValue, previousValue)
 			}
 		}
 	}()
 
-	if fns, ok := st.mpFuncs[value]; ok {
+	if fns, ok := st.mpFuncs[currentValue]; ok {
 		for i := 0; i < len(fns); i++ {
-			fns[i].Func()
+			fns[i].Func(currentValue, previousValue)
 		}
 	}
 }
