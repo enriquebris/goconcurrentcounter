@@ -1,3 +1,3 @@
 # goconcurrentcounter
 
-### License: [MIT License](./license)
+### License: [MIT License](./license.md)
